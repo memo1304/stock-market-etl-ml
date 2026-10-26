@@ -4,6 +4,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import time
+from contextlib import closing
+
+import yaml
+import sqlglot
+from sqlglot import exp
+import sqlite3
+from pathlib import Path
+
 import pandas as pd
 
 from src.agent.base import ObservationAgent
@@ -285,6 +294,109 @@ class AgenteSalida(ObservationAgent):
             "ticker": {"type": "string"},
         }, required=["ticker"])
 
+class AgenteMercadoSQL(ObservationAgent):
+    name = "consultar_mercado_sql"
+    description = (
+        "Permite hacer consultas SQL (solo SELECT) a la base de datos de Mercado. "
+        "Usa la capa semántica para saber qué tablas y columnas existen."
+    )
+
+    def __init__(self, semantic_layer_path: str = "semantic_layer_mercado.yaml", db_path: str = "mercado_test.db", timeout_s: float = 5.0):
+        self.semantic_layer_path = Path(semantic_layer_path)
+        self.db_path = Path(db_path).resolve()
+        self.timeout_s = timeout_s
+        
+        if not self.semantic_layer_path.exists():
+            raise FileNotFoundError(f"No se encontró el archivo semántico: {self.semantic_layer_path}")
+        
+        if not self.db_path.exists():
+            raise FileNotFoundError(f"No se encontró la base de datos: {self.db_path}")
+        
+        with open(self.semantic_layer_path, "r", encoding="utf-8") as f:
+            self.semantic_context = f.read()
+
+    def _validar_sql(self, sql: str) -> str:
+        try:
+            arboles = sqlglot.parse(sql, read="sqlite")
+        except sqlglot.errors.SqlglotError as e:
+            raise ValueError(f"SQL con error de sintaxis: {e}")
+
+        if len(arboles) != 1 or arboles[0] is None:
+            raise ValueError("Solo se permite una sentencia SQL.")
+        
+        arbol = arboles[0]
+        if not isinstance(arbol, (exp.Select, exp.Union)):
+            raise ValueError("Solo se permiten consultas SELECT.")
+        
+        ctes = {cte.alias for cte in arbol.find_all(exp.CTE)}
+        tablas_permitidas = {"precios_historicos", "tipo_cambio"}
+        
+        for tabla in arbol.find_all(exp.Table):
+            if tabla.name not in tablas_permitidas and tabla.name not in ctes:
+                raise ValueError(f"Acceso denegado a la tabla: {tabla.name}")
+        return sql
+
+    def observe(self, sql_query: str = "", **params) -> dict:
+        if not sql_query:
+            return {"ok": False, "error_tipo": "sql_no_permitido", "error": "Falta la consulta SQL."}
+        
+        try:
+            self._validar_sql(sql_query)
+            
+            conn_uri = self.db_path.as_uri() + "?mode=ro"
+            inicio = time.time()
+            
+            with closing(sqlite3.connect(conn_uri, uri=True)) as conn:
+                conn.set_progress_handler(lambda: 1 if time.time() - inicio > self.timeout_s else 0, 10000)
+                
+                query_limitada = f"SELECT * FROM (\n{sql_query.strip().rstrip(';')}\n) LIMIT 51"
+                df = pd.read_sql_query(query_limitada, conn)
+                
+            resultado = df.to_dict(orient="records")
+            truncado = len(resultado) > 50
+            resultado = resultado[:50]
+            
+            return {
+                "ok": True,
+                "query_ejecutada": sql_query,
+                "filas_devueltas": len(resultado),
+                "truncado": truncado, 
+                "datos": resultado
+            }
+        except ValueError as ve:
+            return {"ok": False, "error_tipo": "sql_no_permitido", "error": str(ve)}
+        except sqlite3.OperationalError as e:
+            if "interrupted" in str(e):
+                return {"ok": False, "error_tipo": "timeout", "error": "La consulta excedió el tiempo límite."}
+            return {"ok": False, "error_tipo": "error_db", "error": f"Error en DB: {str(e)}"}
+        except Exception as e:
+            return {"ok": False, "error_tipo": "error_db", "error": f"Error en DB: {str(e)}"}
+
+    def tool_schema(self) -> dict:
+        return _schema(
+            self.name,
+            f"Consulta SQL. Contexto semántico:\n{self.semantic_context}",
+            {
+                "sql_query": {
+                    "type": "string", 
+                    "description": "Consulta SELECT a ejecutar."
+                }
+            },
+            required=["sql_query"]
+        )
+
+    def tool_schema(self) -> dict:
+        return _schema(
+            self.name,
+            f"Consulta SQL. Contexto semántico:\n{self.semantic_context}",
+            {
+                "sql_query": {
+                    "type": "string", 
+                    "description": "Consulta SELECT a ejecutar."
+                }
+            },
+            required=["sql_query"]
+        )
 
 def _cached_news(slug: str, ticker: str) -> list[dict]:
     sig = _signal(slug)
@@ -341,5 +453,6 @@ def build_tools(book: Book) -> dict[str, ObservationAgent]:
         AgenteWoe(),
         AgenteNoticias(),
         AgenteSalida(),
+        AgenteMercadoSQL(),
     ]
     return {a.name: a for a in agents}

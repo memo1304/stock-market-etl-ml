@@ -1,0 +1,55 @@
+# =====================================================================
+# CAPA SEMÁNTICA - EQUIPO MERCADO (Precios & FX)
+# =====================================================================
+
+version: "1.0"
+dominio: "Mercado"
+equipo_responsable: "Equipo Mercado (Precios & FX)"
+fuente_datos: "Yahoo Finance"
+actualizacion: "Diaria (post-cierre de mercado)"
+contacto: "equipo-mercado@proyecto.edu"
+
+tablas:
+  precios_historicos:
+    descripcion: "Precios diarios OHLCV. Una fila por (ticker, fecha)."
+    clave_primaria: [ticker, fecha]
+    columnas:
+      ticker: {tipo: "string", descripcion: "BMV termina en '.MX' (MXN). USA sin sufijo (USD)."}
+      fecha: {tipo: "date", descripcion: "Formato 'YYYY-MM-DD'."}
+      open: {tipo: "float", descripcion: "Precio de apertura del día."}
+      high: {tipo: "float", descripcion: "Precio máximo del día."}
+      low: {tipo: "float", descripcion: "Precio mínimo del día."}
+      close: {tipo: "float", descripcion: "Precio de cierre. Usar para calcular rendimientos."}
+      volume: {tipo: "integer", descripcion: "Títulos negociados."}
+
+  tipo_cambio:
+    descripcion: "Tipo de cambio USD/MXN."
+    clave_primaria: [fecha]
+    columnas:
+      fecha: {tipo: "date"}
+      close: {tipo: "float", descripcion: "Pesos mexicanos por 1 dólar."}
+
+relaciones:
+  - descripcion: "Para convertir precios a otra moneda. Usar INNER JOIN para fechas donde ambos mercados abrieron."
+    join: "precios_historicos p JOIN tipo_cambio fx ON p.fecha = fx.fecha"
+
+reglas_de_negocio:
+  - "La bolsa solo opera de lunes a viernes."
+  - "Fechas relativas se calculan usando (SELECT MAX(fecha) FROM precios_historicos WHERE ticker = '...'), NUNCA con la fecha actual."
+  - "Fórmula de rendimiento: (close_final - close_inicial) / close_inicial * 100."
+  - "Fórmula USD a MXN: close_accion * close_fx. De MXN a USD: close_accion / close_fx."
+  - "'Últimos N días' significa últimas N sesiones bursátiles, no días calendario."
+  - "Si la pregunta no se puede responder con estas tablas (ej. P/E ratios), di que no tienes datos; no inventes columnas."
+
+consultas_de_ejemplo:
+  - pregunta: "Precio de cierre de Walmex en la última fecha disponible"
+    sql: "SELECT fecha, close FROM precios_historicos WHERE ticker = 'WALMEX.MX' ORDER BY fecha DESC LIMIT 1;"
+  
+  - pregunta: "Precio promedio de Apple en el último mes de datos"
+    sql: "SELECT AVG(close) AS promedio FROM precios_historicos WHERE ticker = 'AAPL' AND fecha >= (SELECT date(MAX(fecha), '-1 month') FROM precios_historicos WHERE ticker = 'AAPL');"
+
+  - pregunta: "Rendimiento porcentual de Walmex en las últimas 5 sesiones"
+    sql: "WITH ultimos AS (SELECT fecha, close FROM precios_historicos WHERE ticker = 'WALMEX.MX' ORDER BY fecha DESC LIMIT 5) SELECT (SELECT close FROM ultimos ORDER BY fecha DESC LIMIT 1) AS close_final, (SELECT close FROM ultimos ORDER BY fecha ASC LIMIT 1) AS close_inicial, ((SELECT close FROM ultimos ORDER BY fecha DESC LIMIT 1) * 1.0 / (SELECT close FROM ultimos ORDER BY fecha ASC LIMIT 1) - 1) * 100 AS rendimiento_pct;"
+  
+  - pregunta: "Precio de cierre de Apple en pesos mexicanos en la última fecha"
+    sql: "SELECT p.fecha, p.close AS close_usd, fx.close AS usdmxn, p.close * fx.close AS close_mxn FROM precios_historicos p JOIN tipo_cambio fx ON p.fecha = fx.fecha WHERE p.ticker = 'AAPL' ORDER BY p.fecha DESC LIMIT 1;"
