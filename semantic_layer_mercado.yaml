@@ -40,6 +40,7 @@ reglas_de_negocio:
   - "Fórmula USD a MXN: close_accion * close_fx. De MXN a USD: close_accion / close_fx."
   - "'Últimos N días' significa últimas N sesiones bursátiles, no días calendario."
   - "Si la pregunta no se puede responder con estas tablas (ej. P/E ratios), di que no tienes datos; no inventes columnas."
+  - "La base de datos incluye acciones de México (ticker termina en .MX), acciones de USA (sin sufijo) y ETFs."
 
 consultas_de_ejemplo:
   - pregunta: "Precio de cierre de Walmex en la última fecha disponible"
