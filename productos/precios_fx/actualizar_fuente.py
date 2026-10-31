@@ -1,7 +1,9 @@
 """Refresca la fuente de bronze: data/market/*.parquet desde Yahoo Finance.
 
     python productos/precios_fx/actualizar_fuente.py
-    python productos/precios_fx/capas.py          # después, para regenerar las capas
+    python -m src.etl.bronze.verde.etl_bronze     # después, para regenerar las capas
+    python -m src.etl.silver.verde.etl_silver
+    python -m src.etl.gold.verde.etl_gold
 
 Usa src/data/store.update_all(): baja solo los días nuevos de cada símbolo y
 el historial completo de los que no tienen archivo. Modifica los parquet de
@@ -21,7 +23,7 @@ from src.data.store import update_all  # noqa: E402
 def main() -> int:
     print("Actualizando data/market desde Yahoo Finance...")
     resultado = update_all(verbose=True)
-    print(f"\n{len(resultado)} símbolos procesados. Siguiente paso: python productos/precios_fx/capas.py")
+    print(f"\n{len(resultado)} símbolos procesados. Siguiente paso: el ETL de src/etl (bronze → silver → gold)")
     return 0
 
 

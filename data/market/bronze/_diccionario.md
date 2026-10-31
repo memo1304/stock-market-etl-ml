@@ -1,6 +1,6 @@
 # market / bronze
 
-95 archivos CSV, uno por símbolo. Se generan con `python productos/precios_fx/capas.py`.
+94 archivos CSV, uno por símbolo. Los genera `python -m src.etl.bronze.verde.etl_bronze` (PySpark).
 
 | Columna | Tipo | Descripción |
 |---|---|---|

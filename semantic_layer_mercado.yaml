@@ -2,7 +2,7 @@
 # CAPA SEMÁNTICA - EQUIPO MERCADO (Precios & FX)
 # La lee la herramienta consultar_mercado_sql (src/agent/tools.py) y se la
 # pasa al modelo como contexto. Describe las tablas GOLD de
-# data/market/gold/mercado.db, que genera productos/precios_fx/capas.py.
+# data/market/gold/mercado.db, que genera src/etl/gold/verde/etl_gold.py (PySpark).
 # Las consultas de ejemplo se probaron con una base de prueba, sin llamar a Claude.
 # =====================================================================
 
@@ -11,7 +11,7 @@ dominio: "Mercado"
 equipo_responsable: "Equipo Mercado (Precios & FX), equipo verde"
 fuente_datos: "Yahoo Finance (diario) y DataBursátil (intradía 5 min)"
 base: "SQLite data/market/gold/mercado.db (solo lectura)"
-actualizacion: "Cada vez que se corre productos/precios_fx/capas.py después de refrescar data/market"
+actualizacion: "Cada vez que se corre el ETL de src/etl (bronze → silver → gold) después de refrescar data/market"
 
 tablas:
   precios_historicos:

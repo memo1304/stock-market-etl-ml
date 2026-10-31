@@ -1,6 +1,6 @@
 # intraday / bronze
 
-36 archivos CSV, uno por emisora. Se generan con `python productos/precios_fx/capas.py`.
+36 archivos CSV, uno por emisora. Los genera `python -m src.etl.bronze.verde.etl_bronze` (PySpark).
 
 | Columna | Tipo | Descripción |
 |---|---|---|

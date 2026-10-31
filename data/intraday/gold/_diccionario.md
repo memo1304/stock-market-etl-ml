@@ -1,6 +1,6 @@
 # intraday / gold
 
-36 archivos CSV, uno por emisora. Se generan con `python productos/precios_fx/capas.py`.
+36 archivos CSV, uno por emisora. Los genera `python -m src.etl.gold.verde.etl_gold` (PySpark).
 
 | Columna | Tipo | Descripción |
 |---|---|---|

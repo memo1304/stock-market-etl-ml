@@ -1,6 +1,6 @@
 # intraday / silver
 
-36 archivos CSV, uno por emisora. Se generan con `python productos/precios_fx/capas.py`.
+36 archivos CSV, uno por emisora. Los genera `python -m src.etl.silver.verde.etl_silver` (PySpark).
 
 | Columna | Tipo | Descripción |
 |---|---|---|

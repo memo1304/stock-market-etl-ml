@@ -83,3 +83,6 @@ data/intraday/gold/*
 !data/*/silver/_diccionario.md
 !data/*/gold/_diccionario.md
 mercado_test.db
+
+# Carpeta temporal de Spark al escribir las capas
+_spark_tmp/

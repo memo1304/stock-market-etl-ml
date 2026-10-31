@@ -1,6 +1,6 @@
 # market / silver
 
-94 archivos CSV, uno por símbolo. Se generan con `python productos/precios_fx/capas.py`.
+94 archivos CSV, uno por símbolo. Los genera `python -m src.etl.silver.verde.etl_silver` (PySpark).
 
 | Columna | Tipo | Descripción |
 |---|---|---|

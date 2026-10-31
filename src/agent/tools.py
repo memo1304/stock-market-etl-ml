@@ -347,7 +347,8 @@ class AgenteMercadoSQL(ObservationAgent):
             return {
                 "ok": False,
                 "error_tipo": "sin_base",
-                "error": f"No existe {self.db_path.name}. Constrúyela con: python productos/precios_fx/capas.py",
+                "error": (f"No existe {self.db_path.name}. Constrúyela con el ETL de src/etl: "
+                          "python -m src.etl.gold.verde.etl_gold (después de bronze y silver)"),
             }
         try:
             self._validar_sql(sql_query)
