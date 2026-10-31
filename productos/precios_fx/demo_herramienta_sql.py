@@ -2,7 +2,7 @@
 
     python productos/precios_fx/demo_herramienta_sql.py
 
-Necesita la base gold: python -m src.etl.gold.verde.etl_gold (después de bronze y silver)
+Necesita la base gold: python -m src.etl.gold.mercado.etl_gold (después de bronze y silver)
 """
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from src.agent.tools import MERCADO_DB, SEMANTIC_LAYER, AgenteMercadoSQL  # noqa
 
 def main() -> int:
     print("1. Capa semántica:", SEMANTIC_LAYER.relative_to(ROOT), "✅" if SEMANTIC_LAYER.exists() else "❌ no existe")
-    print("2. Base gold:     ", MERCADO_DB.relative_to(ROOT), "✅" if MERCADO_DB.exists() else "❌ corre el ETL de src/etl")
+    print("2. Base gold:     ", MERCADO_DB.relative_to(ROOT),
+          "✅" if MERCADO_DB.exists() else "❌ corre el ETL de src/etl")
     agente = AgenteMercadoSQL()
 
     schema = agente.tool_schema()

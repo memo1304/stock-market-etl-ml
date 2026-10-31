@@ -1,7 +1,7 @@
 """Silver (PySpark): lee bronze, normaliza nombres y tipos y marca la calidad.
 
-    python -m src.etl.silver.verde.etl_silver
-    python -m src.etl.silver.verde.etl_silver --solo intraday
+    python -m src.etl.silver.mercado.etl_silver
+    python -m src.etl.silver.mercado.etl_silver --solo intraday
 
 Entrada:  data/market/bronze/*.csv, data/intraday/bronze/*.csv
 Salida:   data/market/silver/<SIMBOLO>.csv, data/intraday/silver/<EMISORA>.csv
@@ -25,7 +25,7 @@ from src.etl.shared.precios_fx import (
     escribir_diccionario, guardar_por_ticker, leer_capa, muestra,
 )
 
-SCRIPT = "src.etl.silver.verde.etl_silver"
+SCRIPT = "src.etl.silver.mercado.etl_silver"
 
 
 def silver_market(bronze: DataFrame) -> DataFrame:
@@ -48,7 +48,8 @@ def silver_market(bronze: DataFrame) -> DataFrame:
         df.withColumn("moneda", F.when(es_mxn, "MXN").otherwise("USD"))
         .withColumn("flag_volumen_cero", (F.col("volume") == 0).cast("int"))
         .withColumn("flag_precio_no_positivo",
-                    ((F.col("open") <= 0) | (F.col("high") <= 0) | (F.col("low") <= 0) | (F.col("close") <= 0)).cast("int"))
+                    ((F.col("open") <= 0) | (F.col("high") <= 0) | (F.col("low") <= 0) | (F.col("close") <= 0)).cast(
+                        "int"))
         .withColumn("flag_ohlc_incoherente",
                     ((F.col("high") < F.greatest("open", "close") - 1e-9)
                      | (F.col("low") > F.least("open", "close") + 1e-9)).cast("int"))
@@ -86,14 +87,14 @@ def silver_intraday(bronze: DataFrame, dias: DataFrame) -> DataFrame:
     )
     w_dia = Window.partitionBy("ticker", "fecha")
     df = (df.withColumn("_distintos", F.size(F.collect_set("precio").over(w_dia)))
-            .withColumn("_barras", F.count("*").over(w_dia))
-            .withColumn("_plano", F.col("_distintos") == 1))
+          .withColumn("_barras", F.count("*").over(w_dia))
+          .withColumn("_plano", F.col("_distintos") == 1))
 
     # Días que no se pueden validar contra el diario (posteriores al último diario) cuentan como hábiles.
     ultimo = dias.agg(F.max("fecha")).first()[0] or ""
     habiles = dias.withColumn("_habil", F.lit(True))
     df = (df.join(F.broadcast(habiles), "fecha", "left")
-            .withColumn("_habil", F.coalesce("_habil", F.col("fecha") > F.lit(ultimo))))
+          .withColumn("_habil", F.coalesce("_habil", F.col("fecha") > F.lit(ultimo))))
 
     # Falla de la fuente: el mismo día, casi todas las emisoras traen un solo precio.
     planos = df.select("ticker", "fecha", "_plano").distinct()
@@ -105,9 +106,9 @@ def silver_intraday(bronze: DataFrame, dias: DataFrame) -> DataFrame:
 
     festivo = (~F.col("_habil")) & F.col("_plano")
     df = (df.withColumn("flag_festivo", festivo.cast("int"))
-            .withColumn("flag_falla_fuente", (F.col("_falla") & F.col("_plano") & ~festivo).cast("int"))
-            .withColumn("flag_dia_plano", F.col("_plano").cast("int"))
-            .withColumn("flag_dia_incompleto", (F.col("_barras") < BARRAS_DIA).cast("int")))
+          .withColumn("flag_falla_fuente", (F.col("_falla") & F.col("_plano") & ~festivo).cast("int"))
+          .withColumn("flag_dia_plano", F.col("_plano").cast("int"))
+          .withColumn("flag_dia_incompleto", (F.col("_barras") < BARRAS_DIA).cast("int")))
     return df.select(*columnas("intraday/silver"))
 
 
@@ -115,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Capa silver de Precios & FX con PySpark")
     parser.add_argument("--solo", choices=("market", "intraday"))
     args = parser.parse_args(argv)
-    spark = crear_spark("silver_verde")
+    spark = crear_spark("silver_mercado")
     try:
         mkt = silver_market(leer_capa(spark, "market", "bronze", "market/bronze")).cache()
         if args.solo in (None, "market"):

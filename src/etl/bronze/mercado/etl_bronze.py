@@ -1,7 +1,7 @@
 """Bronze (PySpark): de los .parquet de la fuente a CSV con los campos definidos.
 
-    python -m src.etl.bronze.verde.etl_bronze
-    python -m src.etl.bronze.verde.etl_bronze --solo market
+    python -m src.etl.bronze.mercado.etl_bronze
+    python -m src.etl.bronze.mercado.etl_bronze --solo market
 
 Entrada (no se modifica):
   data/market/*.parquet    OHLCV diario de Yahoo Finance, un archivo por símbolo
@@ -28,7 +28,7 @@ from src.etl.shared.precios_fx import (
     guardar_por_ticker, muestra, redondear, ticker_de_archivo,
 )
 
-SCRIPT = "src.etl.bronze.verde.etl_bronze"
+SCRIPT = "src.etl.bronze.mercado.etl_bronze"
 
 
 def _a_texto(col_name: str, tipo, formato: str):
@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Capa bronze de Precios & FX con PySpark")
     parser.add_argument("--solo", choices=("market", "intraday"))
     args = parser.parse_args(argv)
-    spark = crear_spark("bronze_verde")
+    spark = crear_spark("bronze_mercado")
     try:
         if args.solo in (None, "market"):
             df = bronze_market(spark).cache()
@@ -100,7 +100,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.solo in (None, "intraday"):
             df = bronze_intraday(spark).cache()
             n = guardar_por_ticker(df, INTRADAY / "bronze", ["datetime"])
-            escribir_diccionario("intraday/bronze", muestra(df, "datetime", ticker="WALMEX", desde_inicio=True), n, SCRIPT)
+            escribir_diccionario("intraday/bronze", muestra(df, "datetime", ticker="WALMEX", desde_inicio=True), n,
+                                 SCRIPT)
             print(f"  bronze intraday: {n} emisoras, {df.count():,} filas")
     finally:
         spark.stop()

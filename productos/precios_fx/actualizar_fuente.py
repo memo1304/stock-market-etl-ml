@@ -1,9 +1,9 @@
 """Refresca la fuente de bronze: data/market/*.parquet desde Yahoo Finance.
 
     python productos/precios_fx/actualizar_fuente.py
-    python -m src.etl.bronze.verde.etl_bronze     # después, para regenerar las capas
-    python -m src.etl.silver.verde.etl_silver
-    python -m src.etl.gold.verde.etl_gold
+    python -m src.etl.bronze.mercado.etl_bronze     # después, para regenerar las capas
+    python -m src.etl.silver.mercado.etl_silver
+    python -m src.etl.gold.mercado.etl_gold
 
 Usa src/data/store.update_all(): baja solo los días nuevos de cada símbolo y
 el historial completo de los que no tienen archivo. Modifica los parquet de

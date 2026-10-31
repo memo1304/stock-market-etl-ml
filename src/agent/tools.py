@@ -150,7 +150,8 @@ class AgenteRanking(ObservationAgent):
     def tool_schema(self) -> dict:
         return _schema(self.name, self.description, {
             "universo": {"type": "string", "enum": list(SLUGS), "description": "bmv, usa, etfs, cripto o fibras"},
-            "horizonte": {"type": "string", "enum": ["1s", "2s", "3s", "4s"], "description": "1s es una semana, 4s es un mes"},
+            "horizonte": {"type": "string", "enum": ["1s", "2s", "3s", "4s"],
+                          "description": "1s es una semana, 4s es un mes"},
         }, required=["universo"])
 
 
@@ -166,9 +167,9 @@ class AgenteClima(ObservationAgent):
                 climas[slug] = sig["mercado"]
         numeros = {}
         for label, fname, days in (
-            ("usdmxn_ret5_pct", "MXN=X.parquet", 5),
-            ("wti_ret5_pct", "CL=F.parquet", 5),
-            ("sp500_ret5_pct", "GSPC.parquet", 5),
+                ("usdmxn_ret5_pct", "MXN=X.parquet", 5),
+                ("wti_ret5_pct", "CL=F.parquet", 5),
+                ("sp500_ret5_pct", "GSPC.parquet", 5),
         ):
             path = MARKET / fname
             if not path.exists():
@@ -288,6 +289,7 @@ class AgenteSalida(ObservationAgent):
             "ticker": {"type": "string"},
         }, required=["ticker"])
 
+
 SEMANTIC_LAYER = ROOT / "semantic_layer_mercado.yaml"
 MERCADO_DB = MARKET / "gold" / "mercado.db"
 TABLAS_MERCADO = {"precios_historicos", "tipo_cambio", "intradia_diario"}
@@ -301,11 +303,11 @@ class AgenteMercadoSQL(ObservationAgent):
     )
 
     def __init__(
-        self,
-        semantic_layer_path: str | Path = SEMANTIC_LAYER,
-        db_path: str | Path = MERCADO_DB,
-        timeout_s: float = 5.0,
-        max_filas: int = 50,
+            self,
+            semantic_layer_path: str | Path = SEMANTIC_LAYER,
+            db_path: str | Path = MERCADO_DB,
+            timeout_s: float = 5.0,
+            max_filas: int = 50,
     ):
         # Rutas absolutas respecto a la raíz del repo: funciona desde cualquier carpeta.
         self.semantic_layer_path = Path(semantic_layer_path).resolve()
@@ -348,7 +350,7 @@ class AgenteMercadoSQL(ObservationAgent):
                 "ok": False,
                 "error_tipo": "sin_base",
                 "error": (f"No existe {self.db_path.name}. Constrúyela con el ETL de src/etl: "
-                          "python -m src.etl.gold.verde.etl_gold (después de bronze y silver)"),
+                          "python -m src.etl.gold.mercado.etl_gold (después de bronze y silver)"),
             }
         try:
             self._validar_sql(sql_query)

@@ -1,7 +1,7 @@
 """Gold (PySpark): lee silver y agrega lo que consumen el agente y ML.
 
-    python -m src.etl.gold.verde.etl_gold
-    python -m src.etl.gold.verde.etl_gold --solo market
+    python -m src.etl.gold.mercado.etl_gold
+    python -m src.etl.gold.mercado.etl_gold --solo market
 
 Entrada:  data/market/silver/*.csv, data/intraday/silver/*.csv
 Salida:
@@ -25,7 +25,7 @@ from src.etl.shared.precios_fx import (
     crear_spark, escribir_diccionario, guardar_por_ticker, leer_capa, muestra, redondear,
 )
 
-SCRIPT = "src.etl.gold.verde.etl_gold"
+SCRIPT = "src.etl.gold.mercado.etl_gold"
 
 
 def gold_market(silver: DataFrame) -> DataFrame:
@@ -46,8 +46,8 @@ def gold_market(silver: DataFrame) -> DataFrame:
     df = df.withColumn(
         "close_usd",
         F.when(F.col("ticker") == FX, F.lit(None).cast("double"))
-         .when(F.col("moneda") == "MXN", F.col("close") / F.col("usdmxn_close"))
-         .otherwise(F.col("close")),
+        .when(F.col("moneda") == "MXN", F.col("close") / F.col("usdmxn_close"))
+        .otherwise(F.col("close")),
     )
     w = Window.partitionBy("ticker").orderBy("fecha")
     prev = F.lag("close").over(w)
@@ -65,9 +65,9 @@ def gold_intraday(silver: DataFrame) -> DataFrame:
     w = Window.partitionBy("ticker", "fecha").orderBy("fecha_hora")
     prev = F.lag("precio").over(w)
     df = (df.withColumn("hora", F.substring("fecha_hora", 12, 2).cast("long"))
-            .withColumn("minuto", F.substring("fecha_hora", 15, 2).cast("long"))
-            .withColumn("ret_5m", F.when(prev > 0, (F.col("precio") / prev - 1) * 100))
-            .withColumn("target_next_5m", F.lead("ret_5m").over(w)))
+          .withColumn("minuto", F.substring("fecha_hora", 15, 2).cast("long"))
+          .withColumn("ret_5m", F.when(prev > 0, (F.col("precio") / prev - 1) * 100))
+          .withColumn("target_next_5m", F.lead("ret_5m").over(w)))
     return redondear(df.select(*columnas("intraday/gold")), "intraday/gold")
 
 
@@ -84,8 +84,8 @@ def gold_intraday_diario(barras: DataFrame) -> DataFrame:
     df = (df.withColumn("ret_intradia",
                         F.when(F.col("precio_primero") > 0,
                                (F.col("precio_ultimo") / F.col("precio_primero") - 1) * 100))
-            .withColumn("dia_completo", (F.col("n_barras") == BARRAS_DIA).cast("int"))
-            .withColumn("dia_plano", (F.col("_distintos") == 1).cast("int")))
+          .withColumn("dia_completo", (F.col("n_barras") == BARRAS_DIA).cast("int"))
+          .withColumn("dia_plano", (F.col("_distintos") == 1).cast("int")))
     return redondear(df.select(*columnas("intraday/gold_diario")), "intraday/gold_diario")
 
 
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Capa gold de Precios & FX con PySpark")
     parser.add_argument("--solo", choices=("market", "intraday"))
     args = parser.parse_args(argv)
-    spark = crear_spark("gold_verde")
+    spark = crear_spark("gold_mercado")
     try:
         mkt = diario = None
         if args.solo in (None, "market"):

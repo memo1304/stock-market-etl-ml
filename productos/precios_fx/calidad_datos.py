@@ -43,7 +43,7 @@ NOMBRE = {
     "usa": "Acciones USA", "cripto": "Cripto (proxies)", "macro": "Macro / FX",
 }
 BARRAS_ESPERADAS = 79  # 6.5 h de sesión / 5 min + 1
-SALTO = 0.25           # cambio diario de cierre > 25 % se marca como sospechoso
+SALTO = 0.25  # cambio diario de cierre > 25 % se marca como sospechoso
 
 plt.rcParams.update({
     "figure.dpi": 110, "savefig.dpi": 150, "font.size": 9,
@@ -239,7 +239,7 @@ def g_ejemplo_ohlcv(diario, sym="WALMEX.MX", dias=60) -> None:
     ax.text(0.99, 0.97,
             f"Último día ({df.index[-1]:%d-%b-%Y})\n"
             f"Open  {r['Open']:.2f}\nHigh  {r['High']:.2f}\nLow   {r['Low']:.2f}\n"
-            f"Close {r['Close']:.2f}\nVolume {r['Volume']/1e6:.1f} M",
+            f"Close {r['Close']:.2f}\nVolume {r['Volume'] / 1e6:.1f} M",
             transform=ax.transAxes, ha="right", va="top", fontsize=8, family="monospace",
             bbox=dict(boxstyle="round", fc="white", ec="#cccccc"))
     ax.set_xlim(-1, len(df))
@@ -249,7 +249,7 @@ def g_ejemplo_ohlcv(diario, sym="WALMEX.MX", dias=60) -> None:
     ticks = x[:: max(1, len(x) // 8)]
     axv.set_xticks(ticks, [df.index[k].strftime("%d-%b-%y") for k in ticks])
     ax.text(0.01, 0.03, "Cada vela es un día: la mecha va del Low al High;\n"
-            "el cuerpo va del Open al Close (verde si cerró arriba, rojo si cerró abajo).",
+                        "el cuerpo va del Open al Close (verde si cerró arriba, rojo si cerró abajo).",
             transform=ax.transAxes, va="bottom", fontsize=8, color="#333")
     _guardar(fig, "01_ejemplo_ohlcv.png")
 
@@ -355,7 +355,7 @@ def g_tipo_cambio(diario, tabla) -> None:
     ax2.bar(huecos.index, huecos.values, width=200, color="#e63946")
     ax2.set_ylabel("Días hábiles\nsin dato")
     ax.text(0.99, 0.03, f"Volumen = 0 en {int(fila['volumen_0'])} de {int(fila['filas'])} filas "
-            "(normal: el FX no se negocia en una bolsa central)", transform=ax.transAxes,
+                        "(normal: el FX no se negocia en una bolsa central)", transform=ax.transAxes,
             ha="right", fontsize=8, color="#555")
     _guardar(fig, "05_tipo_cambio.png")
 
@@ -404,7 +404,7 @@ def g_intradia_un_dia(intradia, diario, ticker="WALMEX", sym="WALMEX.MX") -> Non
     ax.set_title(f"Un día intradía: {ticker} {dia:%d-%b-%Y} — {len(x)} barras de 5 min")
     ax.set_ylabel("Precio (MXN)")
     ax.text(0.01, 0.03, "Cada punto es el último precio negociado en esa marca de 5 min.\n"
-            "El archivo no trae Open/High/Low ni volumen por barra: solo datetime y price.",
+                        "El archivo no trae Open/High/Low ni volumen por barra: solo datetime y price.",
             transform=ax.transAxes, fontsize=8, color="#333")
     _guardar(fig, "07_intradia_un_dia.png")
 

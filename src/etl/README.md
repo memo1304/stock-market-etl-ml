@@ -10,22 +10,24 @@ src/etl/
 └── shared/            piezas comunes
 ```
 
-## Equipo verde (Precios & FX)
+## Equipo mercado (Precios & FX)
 
-| Capa | Script | Lee | Escribe |
-|---|---|---|---|
-| bronze | `bronze/verde/etl_bronze.py` | `data/market/*.parquet`, `data/intraday/*.parquet` | `data/{market,intraday}/bronze/` |
-| silver | `silver/verde/etl_silver.py` | bronze | `data/{market,intraday}/silver/` |
-| gold | `gold/verde/etl_gold.py` | silver | `data/{market,intraday}/gold/` y `data/market/gold/mercado.db` |
+| Capa   | Script                         | Lee                                                | Escribe                                                        |
+|--------|--------------------------------|----------------------------------------------------|----------------------------------------------------------------|
+| bronze | `bronze/mercado/etl_bronze.py` | `data/market/*.parquet`, `data/intraday/*.parquet` | `data/{market,intraday}/bronze/`                               |
+| silver | `silver/mercado/etl_silver.py` | bronze                                             | `data/{market,intraday}/silver/`                               |
+| gold   | `gold/mercado/etl_gold.py`     | silver                                             | `data/{market,intraday}/gold/` y `data/market/gold/mercado.db` |
 
 Se corren en orden desde la raíz del repo:
 
 ```bash
-python -m src.etl.bronze.verde.etl_bronze
-python -m src.etl.silver.verde.etl_silver
-python -m src.etl.gold.verde.etl_gold
+python -m src.etl.bronze.mercado.etl_bronze
+python -m src.etl.silver.mercado.etl_silver
+python -m src.etl.gold.mercado.etl_gold
 ```
 
-Necesitan Java 17 o 21 y `pyspark`. Los esquemas de cada capa están en `shared/precios_fx.py` (`ESQUEMA`) y en el `_diccionario.md` de cada carpeta de datos. Detalle del producto: `productos/precios_fx/README.md`.
+Necesitan Java 17 o 21 y `pyspark`. Los esquemas de cada capa están en `shared/precios_fx.py` (`ESQUEMA`) y en el
+`_diccionario.md` de cada carpeta de datos. Detalle del producto: `productos/precios_fx/README.md`.
 
-Los demás archivos de esta carpeta (`alsea/`, `walmex/`, `cargar_precios.py`, `shared/extractors`, `shared/loaders`...) son el ETL anterior hacia SQL Server.
+Los demás archivos de esta carpeta (`alsea/`, `walmex/`, `cargar_precios.py`, `shared/extractors`, `shared/loaders`...)
+son el ETL anterior hacia SQL Server.

@@ -1,1 +1,1 @@
-"""Capa silver del equipo verde (Precios & FX)."""
+"""Capa silver del equipo Mercado (Precios & FX)."""
