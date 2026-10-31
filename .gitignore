@@ -71,3 +71,15 @@ htmlcov/
 temp/
 tmp/
 backfill.pid
+
+# Capas del producto Precios & FX: se regeneran con python productos/precios_fx/capas.py
+data/market/bronze/*
+data/market/silver/*
+data/market/gold/*
+data/intraday/bronze/*
+data/intraday/silver/*
+data/intraday/gold/*
+!data/*/bronze/_diccionario.md
+!data/*/silver/_diccionario.md
+!data/*/gold/_diccionario.md
+mercado_test.db

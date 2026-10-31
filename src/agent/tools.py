@@ -2,15 +2,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
+import sqlite3
 import time
 from contextlib import closing
-
-import yaml
-import sqlglot
-from sqlglot import exp
-import sqlite3
 from pathlib import Path
 
 import pandas as pd
@@ -294,6 +288,11 @@ class AgenteSalida(ObservationAgent):
             "ticker": {"type": "string"},
         }, required=["ticker"])
 
+SEMANTIC_LAYER = ROOT / "semantic_layer_mercado.yaml"
+MERCADO_DB = MARKET / "gold" / "mercado.db"
+TABLAS_MERCADO = {"precios_historicos", "tipo_cambio", "intradia_diario"}
+
+
 class AgenteMercadoSQL(ObservationAgent):
     name = "consultar_mercado_sql"
     description = (
@@ -301,21 +300,29 @@ class AgenteMercadoSQL(ObservationAgent):
         "Usa la capa semántica para saber qué tablas y columnas existen."
     )
 
-    def __init__(self, semantic_layer_path: str = "semantic_layer_mercado.yaml", db_path: str = "mercado_test.db", timeout_s: float = 5.0):
-        self.semantic_layer_path = Path(semantic_layer_path)
+    def __init__(
+        self,
+        semantic_layer_path: str | Path = SEMANTIC_LAYER,
+        db_path: str | Path = MERCADO_DB,
+        timeout_s: float = 5.0,
+        max_filas: int = 50,
+    ):
+        # Rutas absolutas respecto a la raíz del repo: funciona desde cualquier carpeta.
+        self.semantic_layer_path = Path(semantic_layer_path).resolve()
         self.db_path = Path(db_path).resolve()
         self.timeout_s = timeout_s
-        
-        if not self.semantic_layer_path.exists():
-            raise FileNotFoundError(f"No se encontró el archivo semántico: {self.semantic_layer_path}")
-        
-        if not self.db_path.exists():
-            raise FileNotFoundError(f"No se encontró la base de datos: {self.db_path}")
-        
-        with open(self.semantic_layer_path, "r", encoding="utf-8") as f:
-            self.semantic_context = f.read()
+        self.max_filas = max_filas
+        # No lanza error si falta algo: el resto del agente debe seguir funcionando.
+        if self.semantic_layer_path.exists():
+            self.semantic_context = self.semantic_layer_path.read_text(encoding="utf-8")
+        else:
+            self.semantic_context = f"(falta {self.semantic_layer_path.name})"
 
-    def _validar_sql(self, sql: str) -> str:
+    def _validar_sql(self, sql: str) -> None:
+        # Import aquí: si sqlglot no está instalado, solo falla esta herramienta, no todo el agente.
+        import sqlglot
+        from sqlglot import exp
+
         try:
             arboles = sqlglot.parse(sql, read="sqlite")
         except sqlglot.errors.SqlglotError as e:
@@ -323,80 +330,63 @@ class AgenteMercadoSQL(ObservationAgent):
 
         if len(arboles) != 1 or arboles[0] is None:
             raise ValueError("Solo se permite una sentencia SQL.")
-        
+
         arbol = arboles[0]
         if not isinstance(arbol, (exp.Select, exp.Union)):
             raise ValueError("Solo se permiten consultas SELECT.")
-        
+
         ctes = {cte.alias for cte in arbol.find_all(exp.CTE)}
-        tablas_permitidas = {"precios_historicos", "tipo_cambio"}
-        
         for tabla in arbol.find_all(exp.Table):
-            if tabla.name not in tablas_permitidas and tabla.name not in ctes:
+            if tabla.name not in TABLAS_MERCADO and tabla.name not in ctes:
                 raise ValueError(f"Acceso denegado a la tabla: {tabla.name}")
-        return sql
 
     def observe(self, sql_query: str = "", **params) -> dict:
         if not sql_query:
             return {"ok": False, "error_tipo": "sql_no_permitido", "error": "Falta la consulta SQL."}
-        
+        if not self.db_path.exists():
+            return {
+                "ok": False,
+                "error_tipo": "sin_base",
+                "error": f"No existe {self.db_path.name}. Constrúyela con: python productos/precios_fx/capas.py",
+            }
         try:
             self._validar_sql(sql_query)
-            
-            conn_uri = self.db_path.as_uri() + "?mode=ro"
-            inicio = time.time()
-            
-            with closing(sqlite3.connect(conn_uri, uri=True)) as conn:
-                conn.set_progress_handler(lambda: 1 if time.time() - inicio > self.timeout_s else 0, 10000)
-                
-                query_limitada = f"SELECT * FROM (\n{sql_query.strip().rstrip(';')}\n) LIMIT 51"
-                df = pd.read_sql_query(query_limitada, conn)
-                
-            resultado = df.to_dict(orient="records")
-            truncado = len(resultado) > 50
-            resultado = resultado[:50]
-            
-            return {
-                "ok": True,
-                "query_ejecutada": sql_query,
-                "filas_devueltas": len(resultado),
-                "truncado": truncado, 
-                "datos": resultado
-            }
         except ValueError as ve:
             return {"ok": False, "error_tipo": "sql_no_permitido", "error": str(ve)}
-        except sqlite3.OperationalError as e:
-            if "interrupted" in str(e):
-                return {"ok": False, "error_tipo": "timeout", "error": "La consulta excedió el tiempo límite."}
-            return {"ok": False, "error_tipo": "error_db", "error": f"Error en DB: {str(e)}"}
+        except ImportError:
+            return {"ok": False, "error_tipo": "sin_dependencia", "error": "Falta instalar sqlglot."}
+
+        inicio = time.monotonic()
+        try:
+            with closing(sqlite3.connect(self.db_path.as_uri() + "?mode=ro", uri=True)) as conn:
+                conn.set_progress_handler(
+                    lambda: 1 if time.monotonic() - inicio > self.timeout_s else 0, 10000)
+                limitada = f"SELECT * FROM (\n{sql_query.strip().rstrip(';')}\n) LIMIT {self.max_filas + 1}"
+                df = pd.read_sql_query(limitada, conn)
         except Exception as e:
-            return {"ok": False, "error_tipo": "error_db", "error": f"Error en DB: {str(e)}"}
+            # pandas envuelve el error de SQLite, así que se busca "interrupted" en cualquier excepción.
+            if "interrupted" in str(e):
+                return {"ok": False, "error_tipo": "timeout",
+                        "error": f"La consulta excedió {self.timeout_s:g} s."}
+            return {"ok": False, "error_tipo": "error_db", "error": f"Error en DB: {e}"}
+
+        datos = df.to_dict(orient="records")
+        return {
+            "ok": True,
+            "query_ejecutada": sql_query,
+            "filas_devueltas": min(len(datos), self.max_filas),
+            "truncado": len(datos) > self.max_filas,
+            "datos": datos[: self.max_filas],
+        }
 
     def tool_schema(self) -> dict:
         return _schema(
             self.name,
             f"Consulta SQL. Contexto semántico:\n{self.semantic_context}",
-            {
-                "sql_query": {
-                    "type": "string", 
-                    "description": "Consulta SELECT a ejecutar."
-                }
-            },
-            required=["sql_query"]
+            {"sql_query": {"type": "string", "description": "Consulta SELECT a ejecutar."}},
+            required=["sql_query"],
         )
 
-    def tool_schema(self) -> dict:
-        return _schema(
-            self.name,
-            f"Consulta SQL. Contexto semántico:\n{self.semantic_context}",
-            {
-                "sql_query": {
-                    "type": "string", 
-                    "description": "Consulta SELECT a ejecutar."
-                }
-            },
-            required=["sql_query"]
-        )
 
 def _cached_news(slug: str, ticker: str) -> list[dict]:
     sig = _signal(slug)

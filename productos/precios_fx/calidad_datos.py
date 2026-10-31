@@ -388,7 +388,9 @@ def g_intradia_un_dia(intradia, diario, ticker="WALMEX", sym="WALMEX.MX") -> Non
     df = intradia[ticker]
     d = diario[sym]
     n = df.groupby("dia").size()
-    dia = [x for x in n[n == BARRAS_ESPERADAS].index if x in d.index][-1]
+    distintos = df.groupby("dia")["price"].nunique()
+    # el último día completo con precios reales: un día con un solo precio es relleno de la fuente
+    dia = [x for x in n[n == BARRAS_ESPERADAS].index if x in d.index and distintos[x] > 1][-1]
     x = df[df["dia"] == dia]
     r = d.loc[dia]
     fig, ax = plt.subplots(figsize=(12, 5))
